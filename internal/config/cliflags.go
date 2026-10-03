@@ -58,6 +58,7 @@ func ParseClient(args []string, errOut io.Writer) (*Client, error) {
 	fs.StringVar(&r.DNSMode, "dns-mode", r.DNSMode, "резолвер клиента: plain | doh | auto")
 	fs.StringVar(&r.DNSServers, "dns-servers", r.DNSServers, "свои UDP/53 DNS через запятую: ip[:port][,ip[:port]...]")
 	fs.StringVar(&r.ClientID, "client-id", r.ClientID, "уникальный ID клиента (автогенерация если не задан)")
+	fs.StringVar(&r.DTLSFingerprint, "dtls-fingerprint", r.DTLSFingerprint, "ожидаемый SHA-256 отпечаток DTLS-сертификата сервера (certificate pinning)")
 	fs.StringVar(&r.SubURL, "sub", r.SubURL, "URL подписки (sub.md) для получения списка серверов")
 	fs.BoolVar(&r.Routes, "routes", r.Routes, "автоматическое управление маршрутами к TURN-серверам; требует прав администратора")
 	kcp := registerKCPFlags(fs, r.KCP)
@@ -105,6 +106,8 @@ func ParseServer(args []string, errOut io.Writer) (*Server, error) {
 	obfTiming := fs.Duration("obf-timing", 0, "межпакетная задержка для RTP-мимикрии (напр. 10ms); 0=выкл")
 	debug := fs.Bool("debug", false, "подробные debug-логи")
 	clientsFile := fs.String("clients-file", "", "путь к файлу clients.json для авторизации по Client ID")
+	certFile := fs.String("cert-file", "", "путь к постоянному TLS/DTLS сертификату (PEM)")
+	keyFile := fs.String("key-file", "", "путь к постоянному TLS/DTLS ключу (PEM)")
 	kcp := registerKCPFlags(fs, def.KCP.Profile)
 
 	if err := fs.Parse(args); err != nil {
@@ -131,6 +134,8 @@ func ParseServer(args []string, errOut io.Writer) (*Server, error) {
 		Log:         LogOpts{Debug: *debug},
 		KCP:         KCPOpts{Profile: kcp.profile()},
 		ClientsFile: *clientsFile,
+		CertFile:    *certFile,
+		KeyFile:     *keyFile,
 	}
 
 	if s.Obf.GenKey {

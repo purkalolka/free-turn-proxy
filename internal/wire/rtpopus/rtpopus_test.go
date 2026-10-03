@@ -250,3 +250,43 @@ func TestUnwrapRejectsTamperedPacket(t *testing.T) {
 		t.Fatalf("Unwrap accepted tampered AAD")
 	}
 }
+
+func TestUnwrapRejectsReplayAttack(t *testing.T) {
+	key := bytes.Repeat([]byte{0x42}, KeyLen)
+	client, err := NewConn(key, false)
+	if err != nil {
+		t.Fatalf("NewConn(client): %v", err)
+	}
+	server, err := NewConn(key, true)
+	if err != nil {
+		t.Fatalf("NewConn(server): %v", err)
+	}
+
+	payload := []byte("secret payload")
+	wire := make([]byte, MaxWire(len(payload)))
+	n, err := client.WrapInto(wire, payload)
+	if err != nil {
+		t.Fatalf("WrapInto: %v", err)
+	}
+	wirePkt := make([]byte, n)
+	copy(wirePkt, wire[:n])
+
+	dst := make([]byte, 1600)
+	// 1. First time must succeed
+	m, err := server.Unwrap(wirePkt, dst)
+	if err != nil {
+		t.Fatalf("first unwrap failed: %v", err)
+	}
+	if !bytes.Equal(dst[:m], payload) {
+		t.Fatalf("payload mismatch: %s != %s", dst[:m], payload)
+	}
+
+	// 2. Replayed packet must be rejected immediately by anti-replay
+	clone := make([]byte, n)
+	copy(clone, wirePkt)
+	if _, err := server.Unwrap(clone, dst); err == nil {
+		t.Fatal("expected replayed packet to be rejected, but Unwrap succeeded")
+	} else if !strings.Contains(err.Error(), "replay or duplicate") {
+		t.Fatalf("expected 'replay or duplicate' error, got: %v", err)
+	}
+}

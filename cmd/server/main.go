@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"crypto/tls"
 	"errors"
 	"flag"
 	"fmt"
@@ -81,11 +82,19 @@ func main() {
 		logger.Warnf("running with -obf-profile=none: any client reaching %s can relay to %s (no shared-key auth)", cfg.Proxy.Listen, cfg.Proxy.Connect)
 	}
 
-	certificate, genErr := dtlsdial.GenerateSelfSignedCert()
+	var certificate tls.Certificate
+	var genErr error
+	if cfg.CertFile != "" && cfg.KeyFile != "" {
+		certificate, genErr = dtlsdial.LoadOrGenerateCert(cfg.CertFile, cfg.KeyFile)
+	} else {
+		certificate, genErr = dtlsdial.GenerateSelfSignedCert()
+	}
 	if genErr != nil {
 		logger.Errorf("self-signed cert: %v", genErr)
 		os.Exit(1)
 	}
+	fp := dtlsdial.CertificateFingerprint(certificate)
+	logger.Infof("DTLS Certificate SHA-256 Fingerprint: sha256:%s", fp)
 
 	dtlsOpts := []dtls.ServerOption{
 		dtls.WithCertificates(certificate),

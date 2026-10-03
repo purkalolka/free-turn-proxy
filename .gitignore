@@ -21,3 +21,4 @@ captcha_page.html
 node_modules
 dist
 /mobile-dist/
+.gocache

@@ -451,8 +451,9 @@ func (s *Session) relayUDP(ctx context.Context, prov provider.Provider, getCreds
 	}
 
 	dialer := &dtlsdial.Dialer{
-		HandshakeTimeout: s.opts.UDPHandshakeTimeout,
-		HandshakeSem:     make(chan struct{}, s.opts.HandshakeConcurrency),
+		HandshakeTimeout:    s.opts.UDPHandshakeTimeout,
+		HandshakeSem:        make(chan struct{}, s.opts.HandshakeConcurrency),
+		ExpectedFingerprint: s.cfg.DTLSFingerprint,
 	}
 	params := &udprelay.Params{
 		Host:         s.cfg.TURN.Host,
@@ -471,8 +472,9 @@ func (s *Session) relayUDP(ctx context.Context, prov provider.Provider, getCreds
 func (s *Session) relayTCP(ctx context.Context, prov provider.Provider, getCreds udprelay.GetCredsFunc, peer *net.UDPAddr, routeCallback func(net.IP)) error {
 	deps := &tcprelay.Deps{
 		DTLSDialer: &dtlsdial.Dialer{
-			HandshakeTimeout: s.opts.TCPHandshakeTimeout,
-			HandshakeSem:     make(chan struct{}, s.opts.HandshakeConcurrency),
+			HandshakeTimeout:    s.opts.TCPHandshakeTimeout,
+			HandshakeSem:        make(chan struct{}, s.opts.HandshakeConcurrency),
+			ExpectedFingerprint: s.cfg.DTLSFingerprint,
 		},
 		Auth:             prov,
 		Log:              s.deps.Logger,

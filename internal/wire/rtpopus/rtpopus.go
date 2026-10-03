@@ -12,6 +12,7 @@ import (
 	"fmt"
 	"sync/atomic"
 
+	"github.com/samosvalishe/free-turn-proxy/internal/wire/replay"
 	"golang.org/x/crypto/chacha20poly1305"
 )
 
@@ -54,6 +55,7 @@ type Conn struct {
 	counter   atomic.Uint64
 	seq       atomic.Uint32
 	timestamp atomic.Uint32
+	replay    *replay.Filter
 }
 
 func NewConn(key []byte, isServer bool) (*Conn, error) {
@@ -68,7 +70,10 @@ func NewConnFromState(state *State, isServer bool) (*Conn, error) {
 	if state == nil {
 		return nil, errors.New("rtpopus:nil state")
 	}
-	c := &Conn{state: state}
+	c := &Conn{
+		state:  state,
+		replay: replay.NewFilter(),
+	}
 
 	var rnd [16]byte
 	if _, err := rand.Read(rnd[:]); err != nil {
@@ -90,7 +95,7 @@ func NewConnFromState(state *State, isServer bool) (*Conn, error) {
 	if _, err := rand.Read(cb[:]); err != nil {
 		return nil, fmt.Errorf("rtpopus:counter rand: %w", err)
 	}
-	c.counter.Store(binary.BigEndian.Uint64(cb[:]))
+	c.counter.Store(binary.BigEndian.Uint64(cb[:]) & 0x00FFFFFFFFFFFFFF)
 	return c, nil
 }
 
@@ -156,9 +161,18 @@ func (c *Conn) UnwrapInPlace(wire []byte) ([]byte, error) {
 	aad := wire[:headerLen]
 	ct := wire[headerLen:]
 
+	ctr := binary.BigEndian.Uint64(nonce[4:12])
+	if c.replay != nil && !c.replay.Check(ctr) {
+		return nil, errors.New("rtpopus:replay or duplicate packet")
+	}
+
 	plain, err := c.state.aead.Open(ct[:0], nonce, ct, aad)
 	if err != nil {
 		return nil, fmt.Errorf("rtpopus:AEAD open: %w", err)
+	}
+
+	if c.replay != nil {
+		c.replay.Accept(ctr)
 	}
 	return plain, nil
 }

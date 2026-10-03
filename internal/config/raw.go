@@ -38,10 +38,11 @@ type raw struct {
 	DNSMode    string
 	DNSServers string
 
-	Debug    bool
-	ClientID string
-	SubURL   string
-	Routes   bool
+	Debug           bool
+	ClientID        string
+	DTLSFingerprint string
+	SubURL          string
+	Routes          bool
 
 	TunnelMode   string
 	TunnelConfig string
@@ -107,6 +108,9 @@ func (r *raw) applyURI(u *uri.Config) {
 		r.TunnelMode = "awg"
 		r.TunnelConfig = u.WGConf
 	}
+	if u.Fingerprint != "" {
+		r.DTLSFingerprint = u.Fingerprint
+	}
 }
 
 func assemble(r raw) (*Client, error) {
@@ -165,9 +169,10 @@ func assemble(r raw) (*Client, error) {
 			Config: r.TunnelConfig,
 			MTU:    tunnelMTU,
 		},
-		ClientID: r.ClientID,
-		SubURL:   r.SubURL,
-		Routes:   r.Routes,
+		ClientID:        r.ClientID,
+		SubURL:          r.SubURL,
+		Routes:          r.Routes,
+		DTLSFingerprint: r.DTLSFingerprint,
 	}
 
 	if r.DNSServers != "" {

@@ -30,6 +30,7 @@ type Config struct {
 	KCP            *KCP
 	Comment        string
 	WGConf         string
+	Fingerprint    string
 }
 
 // wire - JSON-схема freeturn:// ссылок.
@@ -51,6 +52,7 @@ type wire struct {
 	KCP            *KCP   `json:"kcp,omitempty"`
 	Name           string `json:"name,omitempty"`
 	WGConf         string `json:"wg,omitempty"`
+	Fingerprint    string `json:"fp,omitempty"`
 }
 
 // Parse разбирает строку freeturn://<base64url(json)>.
@@ -100,6 +102,7 @@ func Parse(s string) (*Config, error) {
 		KCP:            w.KCP,
 		Comment:        w.Name,
 		WGConf:         w.WGConf,
+		Fingerprint:    w.Fingerprint,
 	}, nil
 }
 
@@ -121,6 +124,7 @@ func (c *Config) String() string {
 		KCP:            c.KCP,
 		Name:           c.Comment,
 		WGConf:         c.WGConf,
+		Fingerprint:    c.Fingerprint,
 	}
 	if c.ObfProfile != "" && c.ObfProfile != "none" {
 		w.Obf = c.ObfProfile

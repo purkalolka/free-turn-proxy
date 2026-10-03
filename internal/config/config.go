@@ -89,18 +89,19 @@ type TunnelOpts struct {
 func (t TunnelOpts) Enabled() bool { return t.Mode != "" && t.Mode != tunnel.ModeNone }
 
 type Client struct {
-	TURN     TURNOpts
-	Obf      ObfOpts
-	Proxy    ProxyOpts
-	Provider ProviderOpts
-	VK       VKOpts
-	DNS      DNSOpts
-	Log      LogOpts
-	KCP      KCPOpts
-	Tunnel   TunnelOpts
-	ClientID string
-	SubURL   string
-	Routes   bool
+	TURN            TURNOpts
+	Obf             ObfOpts
+	Proxy           ProxyOpts
+	Provider        ProviderOpts
+	VK              VKOpts
+	DNS             DNSOpts
+	Log             LogOpts
+	KCP             KCPOpts
+	Tunnel          TunnelOpts
+	ClientID        string
+	SubURL          string
+	Routes          bool
+	DTLSFingerprint string
 }
 
 type Server struct {
@@ -109,4 +110,6 @@ type Server struct {
 	Log         LogOpts
 	KCP         KCPOpts
 	ClientsFile string
+	CertFile    string
+	KeyFile     string
 }

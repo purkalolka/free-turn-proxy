@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"crypto/rand"
 	"encoding/binary"
+	"strings"
 	"testing"
 )
 
@@ -153,5 +154,35 @@ func TestWrongKeyFails(t *testing.T) {
 	n, _ := cli.WrapInPlace(buf, len(payload))
 	if _, err := srv.UnwrapInPlace(buf[:n]); err == nil {
 		t.Fatal("expected failure decrypting with wrong key")
+	}
+}
+
+func TestReplayAttackDetected(t *testing.T) {
+	t.Parallel()
+	key := newKey(t)
+	cli, _ := NewConn(key, false)
+	srv, _ := NewConn(key, true)
+
+	payload := []byte("secret")
+	buf := make([]byte, MaxWire(len(payload)))
+	copy(buf[headerLen:], payload)
+	n, _ := cli.WrapInPlace(buf, len(payload))
+
+	// First unwrap must succeed
+	plain, err := srv.UnwrapInPlace(buf[:n])
+	if err != nil {
+		t.Fatalf("first unwrap failed: %v", err)
+	}
+	if !bytes.Equal(plain, payload) {
+		t.Fatalf("payload mismatch: %s != %s", plain, payload)
+	}
+
+	// Replay must fail
+	clone := make([]byte, n)
+	copy(clone, buf[:n])
+	if _, err := srv.UnwrapInPlace(clone); err == nil {
+		t.Fatal("expected replay attack to fail, but UnwrapInPlace succeeded")
+	} else if !strings.Contains(err.Error(), "replay or duplicate") {
+		t.Fatalf("expected 'replay or duplicate' error, got: %v", err)
 	}
 }
