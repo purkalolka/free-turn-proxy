@@ -1,0 +1,75 @@
+﻿name: Build Core AAR
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+
+permissions:
+  contents: write
+
+env:
+  GO_VERSION: "1.26.7"
+  GOMOBILE_VERSION: latest
+  TASK_VERSION: 3.52.0
+  # С‚РµРі РЅР°РјРµСЂРµРЅРЅРѕ РЅРµ РІРёРґР° v*.*.*, С‡С‚РѕР±С‹ РЅРµ С‚СЂРёРіРіРµСЂРёС‚СЊ РѕСЃРЅРѕРІРЅРѕР№ release.yml
+  RELEASE_TAG: v340-vkcalls
+  NDK_VERSION: 27.2.12479018
+
+jobs:
+  build-aar:
+    name: Build & publish freeturn.aar
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: ${{ env.GO_VERSION }}
+          cache: true
+
+      - uses: arduino/setup-task@v2
+        with:
+          version: ${{ env.TASK_VERSION }}
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Configure Android NDK
+        run: |
+          set -euo pipefail
+          SDK="${ANDROID_SDK_ROOT:-${ANDROID_HOME:-/usr/local/lib/android/sdk}}"
+          NDK_DIR="$(ls -d "$SDK"/ndk/*/ 2>/dev/null | sort -V | tail -n1 || true)"
+          if [ -z "$NDK_DIR" ]; then
+            echo "NDK РЅРµ РЅР°Р№РґРµРЅ, СЃС‚Р°РІР»СЋ $NDK_VERSION"
+            yes | "$SDK/cmdline-tools/latest/bin/sdkmanager" "ndk;$NDK_VERSION" > /dev/null
+            NDK_DIR="$SDK/ndk/$NDK_VERSION/"
+          fi
+          echo "ANDROID_NDK_HOME=${NDK_DIR%/}" >> "$GITHUB_ENV"
+          echo "ANDROID_HOME=$SDK" >> "$GITHUB_ENV"
+          echo "ANDROID_SDK_ROOT=$SDK" >> "$GITHUB_ENV"
+          echo "NDK: ${NDK_DIR%/}"
+
+      - name: Install gomobile
+        run: |
+          go install golang.org/x/mobile/cmd/gomobile@${{ env.GOMOBILE_VERSION }}
+          gomobile init
+
+      - name: Build AAR
+        run: task build:android
+
+      - name: Checksums
+        working-directory: dist
+        run: |
+          ls -la
+          sha256sum freeturn.aar > checksums.txt
+          cat checksums.txt
+
+      - name: Publish release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release delete "$RELEASE_TAG" --yes --cleanup-tag || true
+          gh release create "$RELEASE_TAG" \
+            dist/freeturn.aar \
+            dist/checksums.txt \
+            --title "Core AAR $RELEASE_TAG" \
+            --notes "FreeTurn core 3.4.0 + VK Calls captcha-free auth (client_id=8093730)"
