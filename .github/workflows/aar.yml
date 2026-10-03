@@ -1,4 +1,4 @@
-﻿name: Build Core AAR
+name: Build Core AAR
 
 on:
   workflow_dispatch:
@@ -13,7 +13,7 @@ env:
   GOMOBILE_VERSION: latest
   TASK_VERSION: 3.52.0
   # С‚РµРі РЅР°РјРµСЂРµРЅРЅРѕ РЅРµ РІРёРґР° v*.*.*, С‡С‚РѕР±С‹ РЅРµ С‚СЂРёРіРіРµСЂРёС‚СЊ РѕСЃРЅРѕРІРЅРѕР№ release.yml
-  RELEASE_TAG: v340-vkcalls
+  RELEASE_TAG: v341-vkcalls
   NDK_VERSION: 27.2.12479018
 
 jobs:
@@ -72,4 +72,5 @@ jobs:
             dist/freeturn.aar \
             dist/checksums.txt \
             --title "Core AAR $RELEASE_TAG" \
-            --notes "FreeTurn core 3.4.0 + VK Calls captcha-free auth (client_id=8093730)"
+            --notes "FreeTurn core 3.4.1 + VK Calls captcha-free auth (client_id=8093730) + Security fixes (DTLS cert pinning, Anti-Replay)"
+          gh release upload v3.4.1 dist/freeturn.aar --clobber || true
