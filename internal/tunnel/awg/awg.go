@@ -66,6 +66,10 @@ func (b *Backend) upWithTUN(cfg *tunnel.Config, tunDev tun.Device) error {
 		return errors.New("awg: tunnel is already up")
 	}
 
+	if BlockQUIC.Load() {
+		tunDev = &quicFilter{Device: tunDev}
+	}
+
 	bind := b.deps.Bind
 	if bind == nil {
 		bind = conn.NewDefaultBind()

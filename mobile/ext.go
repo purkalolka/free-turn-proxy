@@ -4,12 +4,17 @@ import (
 	"fmt"
 	"runtime"
 	"runtime/debug"
+
+	"github.com/samosvalishe/free-turn-proxy/internal/tunnel/awg"
 )
 
 // TuneForExtension подгоняет Go-рантайм под жёсткий лимит памяти iOS Network
 // Extension (~50 МБ): без мягкого лимита GC не успевает до того, как процесс
 // упрётся в потолок, а у самого потолка крутится почти непрерывно.
+//
+// Заодно включает отсечение QUIC (UDP/443) в туннеле - см. awg.BlockQUIC.
 func TuneForExtension() {
+	awg.BlockQUIC.Store(true)
 	debug.SetMemoryLimit(35 << 20)
 }
 
