@@ -118,7 +118,49 @@ func ParseClientJSON(data []byte, overlayURI string) (*Client, error) {
 }
 
 func defaultClientJSON() ClientJSON {
+	return clientJSONFromRaw(defaultRaw())
+}
+
+// ClientJSONFromLink собирает configJSON для мобильного хоста из share-ссылки
+// freeturn:// и ссылки на звонок VK. clientID используется, только если в самой
+// ссылке нет cid.
+func ClientJSONFromLink(link, vkLink, clientID string) (string, error) {
+	u, err := uri.Parse(strings.TrimSpace(link))
+	if err != nil {
+		return "", fmt.Errorf("failed to parse freeturn:// URI: %w", err)
+	}
+	vkLink = strings.TrimSpace(vkLink)
+	if vkLink == "" {
+		return "", fmt.Errorf("vk call link is required")
+	}
+
 	r := defaultRaw()
+	r.Transport = TransportTCP
+	r.N = 12
+	r.StreamsPerCred = 12
+	r.ClientID = clientID
+	r.applyURI(u)
+	r.Links = vkLink
+	r.Platform = string(PlatformMobile)
+
+	b, err := json.Marshal(clientJSONFromRaw(r))
+	if err != nil {
+		return "", err
+	}
+	return string(b), nil
+}
+
+func splitCSV(s string) []string {
+	var out []string
+	for _, p := range strings.Split(s, ",") {
+		if p = strings.TrimSpace(p); p != "" {
+			out = append(out, p)
+		}
+	}
+	return out
+}
+
+func clientJSONFromRaw(r raw) ClientJSON {
 	return ClientJSON{
 		Peer:     r.Peer,
 		ClientID: r.ClientID,
@@ -134,6 +176,7 @@ func defaultClientJSON() ClientJSON {
 		Proxy: proxyJSON{Mode: r.Mode, Listen: r.Listen},
 		KCP:   kcpJSONFrom(r.KCP),
 		VK: vkJSON{
+			Links:          splitCSV(r.Links),
 			StreamsPerCred: r.StreamsPerCred,
 			ManualCaptcha:  r.ManualCaptcha,
 			Platform:       r.Platform,
@@ -143,7 +186,7 @@ func defaultClientJSON() ClientJSON {
 			Key:      r.ObfKey,
 			TimingMs: int(r.ObfTiming / time.Millisecond),
 		},
-		DNS: dnsJSON{Mode: r.DNSMode},
+		DNS: dnsJSON{Mode: r.DNSMode, Servers: splitCSV(r.DNSServers)},
 		Log: logJSON{Debug: r.Debug},
 		Tunnel: tunnelJSON{
 			Mode:   r.TunnelMode,

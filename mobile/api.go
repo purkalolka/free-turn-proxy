@@ -124,6 +124,12 @@ func SetStateDir(path string) { statedir.SetDir(path) }
 
 func DefaultConfigJSON() string { return config.DefaultClientJSON() }
 
+// ConfigFromLink собирает configJSON из share-ссылки freeturn:// и ссылки на
+// звонок VK (клиентский ID берётся из ссылки, иначе из clientID).
+func ConfigFromLink(link, vkLink, clientID string) (string, error) {
+	return config.ClientJSONFromLink(link, vkLink, clientID)
+}
+
 func ValidateConfig(configJSON string) string {
 	if _, err := config.ParseClientJSON([]byte(configJSON), ""); err != nil {
 		return err.Error()
