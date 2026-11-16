@@ -211,6 +211,9 @@ func dtlsSession(dtlsctx context.Context, dtlscancel context.CancelFunc, deps *D
 func oneTURN(ctx context.Context, deps *Deps, params *Params, peer *net.UDPAddr, conn2 net.PacketConn, streamID int, c chan<- error) {
 	var err error
 	defer func() {
+		if deps.Tracker != nil {
+			deps.Tracker.MarkDown(streamID, err)
+		}
 		c <- err
 	}()
 
@@ -254,6 +257,9 @@ func oneTURN(ctx context.Context, deps *Deps, params *Params, peer *net.UDPAddr,
 	wg := sync.WaitGroup{}
 	turnctx, turncancel := context.WithCancel(ctx)
 	defer turncancel()
+	if deps.Tracker != nil {
+		deps.Tracker.MarkUp(streamID, turncancel)
+	}
 
 	// без дедлайна relayConn.ReadFrom не проснётся на отмене turnctx - wg.Wait встанет намертво
 	context.AfterFunc(turnctx, func() {
@@ -327,6 +333,9 @@ func oneTURN(ctx context.Context, deps *Deps, params *Params, peer *net.UDPAddr,
 			if params.TrafficStats != nil {
 				params.TrafficStats.AddTx(written)
 			}
+			if deps.Tracker != nil {
+				deps.Tracker.AddTx(streamID, written)
+			}
 			if err1 != nil {
 				return
 			}
@@ -344,6 +353,9 @@ func oneTURN(ctx context.Context, deps *Deps, params *Params, peer *net.UDPAddr,
 			n, _, err1 := relayConn.ReadFrom(buf)
 			if err1 != nil {
 				return
+			}
+			if deps.Tracker != nil {
+				deps.Tracker.AddRx(streamID, n)
 			}
 			addr1 := internalPipeAddr.Load()
 			if addr1 == nil {

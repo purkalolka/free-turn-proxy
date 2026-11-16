@@ -39,7 +39,7 @@ type Params struct {
 	TrafficStats *stats.Stats
 }
 
-const streamStartBarrier = 20 * time.Second
+const streamStartBarrier = 4 * time.Second
 
 // ErrFatal возвращается при фатальных ошибках провайдера, требующих остановки клиента.
 var ErrFatal = errors.New("udprelay: fatal error")
@@ -51,6 +51,7 @@ type Deps struct {
 	ActiveLocalPeer  *atomic.Value
 	ConnectedStreams *atomic.Int32
 	OnTURNServer     func(ip net.IP)
+	Tracker          *Tracker
 	fatalCh          chan error
 	allocPace        *allocpace.Pacer
 }
@@ -85,6 +86,9 @@ func Run(ctx context.Context, dtlsDialer *dtlsdial.Dialer, auth AuthHandler, log
 
 	fatalCh := make(chan error, 1)
 	var activeLocalPeer atomic.Value
+	tracker := NewTracker()
+	uninstallTracker := installTracker(tracker)
+	defer uninstallTracker()
 	deps := &Deps{
 		DTLSDialer:       dtlsDialer,
 		Auth:             auth,
@@ -92,6 +96,7 @@ func Run(ctx context.Context, dtlsDialer *dtlsdial.Dialer, auth AuthHandler, log
 		ActiveLocalPeer:  &activeLocalPeer,
 		ConnectedStreams: connectedStreams,
 		OnTURNServer:     onTURNServer,
+		Tracker:          tracker,
 		fatalCh:          fatalCh,
 		allocPace:        allocpace.New(allocpace.DefaultInterval),
 	}
@@ -124,6 +129,9 @@ func Run(ctx context.Context, dtlsDialer *dtlsdial.Dialer, auth AuthHandler, log
 	wg := sync.WaitGroup{}
 	wg.Go(deps.guard(func() {
 		runListener(runCtx, listenConn, &activeLocalPeer, inboundChan)
+	}))
+	wg.Go(deps.guard(func() {
+		watchStreams(runCtx, tracker, logger)
 	}))
 
 	// Стрим 1 стартует первым для прогрева кэша учетных данных.
